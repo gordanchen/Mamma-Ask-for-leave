@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>《Mamma蜜呀 馬上發蜂》母親節市集活動請假系統</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="bg-decoration deco-1"></div>
+  <div class="bg-decoration deco-2"></div>
+  <div class="bg-decoration deco-3"></div>
+
+  <div class="loading-overlay hidden" id="loadingOverlay">
+    <div class="loading-card">
+      <div class="loading-spinner"></div>
+      <div class="loading-text" id="loadingText">資料處理中...</div>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <section class="page" id="loginPage">
+    <div class="panel login-panel app-shell">
+      <div class="panel-badge">2026 Mamma蜜呀 馬上發蜂 母親節市集活動請假系統</div>
+      <h1 class="title">請假系統登入</h1>
+      <p class="subtitle">請先選擇部門與人名，再進入請假填寫頁面。</p>
+
+      <div class="form-group">
+        <label for="departmentSelect">部門名稱</label>
+        <select id="departmentSelect"></select>
+      </div>
+
+      <div class="form-group">
+        <label for="memberSelect">人名</label>
+        <select id="memberSelect"></select>
+      </div>
+
+      <button class="btn btn-primary btn-large" id="enterBtn">進入系統</button>
+    </div>
+  </section>
+
+  <section class="page hidden" id="mainPage">
+    <div class="panel main-panel app-shell">
+      <div class="top-area">
+        <div>
+          <div class="panel-badge">2026 Mamma蜜呀 馬上發蜂</div>
+          <div class="current-user" id="showUser"></div>
+        </div>
+        <div class="toolbar-row">
+          <button class="btn btn-outline" id="scheduleBtn">查看課表</button>
+          <button class="btn btn-outline" id="adminToggleBtn">查看總覽</button>
+          <button class="btn btn-outline" id="backBtn">更換人員</button>
+        </div>
+      </div>
+
+      <div class="hero-card app-hero">
+        <div class="hero-left">
+          <h2>請選擇請假時段</h2>
+          <p>已填寫過的時段會直接標示，點選後仍可再修改內容並重新送出。</p>
+        </div>
+        <div class="hero-right">🍯</div>
+      </div>
+
+      <div class="search-card">
+        <div class="section-head">
+          <label>活動時段</label>
+          <span class="section-tip">已填寫時段會顯示「已填寫」</span>
+        </div>
+        <div class="slot-grid" id="slotGrid"></div>
+      </div>
+
+      <div class="result-card">
+        <div class="status-chip">目前狀態</div>
+        <div class="result-title">已填寫的請假資料</div>
+        <div class="detail-box">
+          <div class="detail-main" id="summaryMain">尚未新增任何請假時段。</div>
+          <div class="detail-sub" id="summarySub">你可以連續新增多筆，最後再一起送出。</div>
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-list" id="requestList"></div>
+        <div class="action-row" style="margin-bottom: 12px;">
+          <button class="btn btn-yellow" id="submitBtn">送出全部請假資料</button>
+          <button class="btn btn-soft" id="clearAllBtn">清空目前填寫</button>
+        </div>
+      </div>
+
+      <div class="admin-card hidden" id="adminCard">
+        <div class="status-chip badge-done">管理總覽</div>
+        <div class="result-title">所有人請假狀況</div>
+        <div class="admin-table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>時段</th>
+                <th>時間</th>
+                <th colspan="5">請假名單</th>
+              </tr>
+            </thead>
+            <tbody id="adminTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="modal" id="leaveModal">
+    <div class="modal-card">
+      <h2 class="modal-title" id="modalTitle">新增請假</h2>
+      <p class="modal-subtitle" id="modalSubtitle">請填寫此時段的請假原因與補充資訊。</p>
+
+      <div class="row">
+        <div class="form-group">
+          <label for="reasonSelect">請假事由</label>
+          <select id="reasonSelect">
+            <option value="">請選擇</option>
+            <option value="上課">上課</option>
+            <option value="上班">上班</option>
+            <option value="工讀">工讀</option>
+            <option value="師培">師培</option>
+            <option value="專題">專題</option>
+            <option value="其他">其他</option>
+          </select>
+          <div class="field-error" id="reasonErrorText">請填寫請假事由</div>
+        </div>
+
+        <div class="form-group hidden" id="otherReasonWrap">
+          <label for="otherReasonInput">其他事由</label>
+          <input id="otherReasonInput" type="text" placeholder="請自行輸入原因" />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>請假類型</label>
+        <div class="select-grid" id="leaveTypeGrid">
+          <button type="button" class="select-option active" data-type="整段請假">整段請假</button>
+          <button type="button" class="select-option" data-type="晚到">晚到</button>
+          <button type="button" class="select-option" data-type="早退">早退</button>
+        </div>
+      </div>
+
+      <div class="row hidden" id="timeWrap">
+        <div class="form-group">
+          <label for="startTimeInput">開始時間</label>
+          <input id="startTimeInput" type="time" />
+        </div>
+        <div class="form-group">
+          <label for="endTimeInput">結束時間</label>
+          <input id="endTimeInput" type="time" />
+        </div>
+      </div>
+
+      <div class="form-group hidden" id="detailReasonWrap">
+        <label for="detailReasonInput">晚到／早退原因</label>
+        <input id="detailReasonInput" type="text" placeholder="例如：12:00 才下課、1 點要上班" />
+        <div class="field-error" id="timeErrorText"></div>
+      </div>
+
+      <div class="form-group">
+        <label for="noteInput">備註事項</label>
+        <textarea id="noteInput" placeholder="例如：班表尚未排出、可能臨時調班、特殊時段請寫在這裡"></textarea>
+      </div>
+
+      <div class="action-row">
+        <button class="btn btn-yellow" id="saveModalBtn">確認加入</button>
+        <button class="btn btn-soft" id="closeModalBtn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="scheduleModal">
+    <div class="modal-card">
+      <h2 class="modal-title" id="scheduleModalTitle">查看課表</h2>
+      <p class="modal-subtitle hidden" id="scheduleModalHint"></p>
+      <div class="schedule-modal-body" id="scheduleModalBody"></div>
+      <div class="action-row" style="margin-top: 16px;">
+        <button class="btn btn-soft" id="closeScheduleModalBtn">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="confirmModal">
+    <div class="modal-card modal-card-sm">
+      <h2 class="modal-title">確認刪除</h2>
+      <p class="modal-subtitle" id="confirmText">確定要刪除這筆資料嗎？</p>
+      <div class="action-row">
+        <button class="btn btn-danger" id="confirmYesBtn">確認刪除</button>
+        <button class="btn btn-soft" id="confirmNoBtn">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cis-footer">
+    <div class="cis-line"></div>
+    <img src="cis.png" alt="CIS Logo" class="cis-logo-img" />
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
