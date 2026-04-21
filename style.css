@@ -65,7 +65,7 @@ body {
 
 .panel {
   width: 100%;
-  max-width: 1080px;
+  max-width: 1180px;
   background: var(--card);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 203, 145, 0.7);
@@ -576,7 +576,7 @@ input:focus, select:focus, textarea:focus {
 
 table {
   width: 100%;
-  min-width: 860px;
+  min-width: 1320px;
   border-collapse: collapse;
 }
 
@@ -609,6 +609,67 @@ th {
   text-decoration: underline dotted;
   color: #b66a22;
   font-weight: 700;
+}
+
+.admin-day-header {
+  background: #fff3dc;
+  font-weight: 900;
+  color: #9b4e12;
+  font-size: 18px;
+}
+
+.admin-slot-label {
+  font-weight: 800;
+  color: #7a3c00;
+  min-width: 110px;
+}
+
+.admin-slot-time {
+  font-weight: 800;
+  color: #b05a18;
+  min-width: 125px;
+}
+
+.name-badge-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 180px;
+}
+
+.name-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.name-badge.badge-attend {
+  background: #effbf3;
+  color: #1f7d46;
+  border-color: #c4efcf;
+}
+
+.name-badge.badge-leave {
+  background: #fff3f1;
+  color: #b33f27;
+  border-color: #f1c1bb;
+}
+
+.name-badge.badge-partial {
+  background: #fff8ef;
+  color: #8b5e2c;
+  border-color: #f5d19e;
+}
+
+.name-badge.badge-duty {
+  background: #fff7db;
+  color: #896000;
+  border-color: #f0d37a;
 }
 
 .cis-footer {

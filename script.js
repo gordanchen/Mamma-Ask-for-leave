@@ -552,29 +552,134 @@ async function submitAll() {
   }
 }
 
+function parseRangeText(text = "") {
+  const match = String(text).match(/(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})/);
+  if (!match) return null;
+  return { start: normalizeHHMM(match[1]), end: normalizeHHMM(match[2]) };
+}
+
+function normalizeHHMM(value = "") {
+  const [h = "00", m = "00"] = String(value).split(":");
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function timeToMinutes(text = "") {
+  const [h, m] = normalizeHHMM(text).split(":").map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(minutes) {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+function parseLeaveTypeText(typeText = "") {
+  const normalized = String(typeText || "").trim();
+
+  if (!normalized || normalized === "整段請假") {
+    return { kind: "full", range: null };
+  }
+
+  const kind = normalized.startsWith("晚到")
+    ? "late"
+    : normalized.startsWith("早退")
+      ? "early"
+      : "partial";
+
+  const range = parseRangeText(normalized);
+  return { kind, range };
+}
+
+function calcBetaDutyTime(slotStart, slotEnd, typeText) {
+  const parsed = parseLeaveTypeText(typeText);
+
+  if (parsed.kind === "full") return "—";
+
+  const slotStartMin = timeToMinutes(slotStart);
+  const slotEndMin = timeToMinutes(slotEnd);
+
+  if (!parsed.range) return `${slotStart} - ${slotEnd}`;
+
+  const leaveStart = timeToMinutes(parsed.range.start);
+  const leaveEnd = timeToMinutes(parsed.range.end);
+
+  const ranges = [];
+
+  if (leaveStart > slotStartMin) {
+    ranges.push(`${minutesToTime(slotStartMin)}-${minutesToTime(leaveStart)}`);
+  }
+
+  if (leaveEnd < slotEndMin) {
+    ranges.push(`${minutesToTime(leaveEnd)}-${minutesToTime(slotEndMin)}`);
+  }
+
+  return ranges.length ? ranges.join(" / ") : "—";
+}
+
+function renderNameBadges(list, className = "") {
+  if (!list.length) {
+    return '<span class="empty-text">無</span>';
+  }
+
+  return `
+    <div class="name-badge-wrap ${className}">
+      ${list.map(text => `<span class="name-badge ${className}">${text}</span>`).join("")}
+    </div>
+  `;
+}
+
 function renderAdminTable() {
+  const allMemberNames = membersData.map(item => item.name).filter(Boolean);
+
   const grouped = slotGroups.map(day => ({
     dateLabel: day.dateLabel,
-    items: (day.items || []).map(slot => ({
-      slotLabel: slot.slotLabel,
-      timeText: `${slot.start} - ${slot.end}`,
-      leaves: adminData.filter(item => item.slotLabel === slot.slotLabel && item.dateLabel === day.dateLabel)
-    }))
+    items: (day.items || []).map(slot => {
+      const leaves = adminData.filter(item => item.slotLabel === slot.slotLabel && item.dateLabel === day.dateLabel);
+
+      const fullLeaveNames = leaves
+        .filter(item => parseLeaveTypeText(item.typeText).kind === "full")
+        .map(item => item.name);
+
+      const partialLeaves = leaves
+        .filter(item => parseLeaveTypeText(item.typeText).kind !== "full")
+        .map(item => ({
+          name: item.name,
+          reasonText: item.reasonText,
+          typeText: item.typeText,
+          noteText: item.noteText,
+          betaDuty: calcBetaDutyTime(slot.start, slot.end, item.typeText)
+        }));
+
+      const attendanceNames = allMemberNames.filter(name => !fullLeaveNames.includes(name));
+
+      const leaveNamesWithReason = leaves.map(item => `${item.name}｜${item.reasonText}`);
+      const partialNamesWithType = partialLeaves.map(item => `${item.name}｜${item.typeText}`);
+      const betaDutyLines = partialLeaves.map(item => `${item.name}｜${item.betaDuty}`);
+
+      return {
+        slotLabel: slot.slotLabel,
+        timeText: `${slot.start} - ${slot.end}`,
+        attendanceNames,
+        leaveNamesWithReason,
+        partialNamesWithType,
+        betaDutyLines
+      };
+    })
   }));
 
   adminTableBody.innerHTML = grouped.map(day => `
     <tr>
-      <td colspan="7" style="background:#fff3dc; font-weight:900; color:#9b4e12; font-size:18px;">${day.dateLabel}</td>
+      <td colspan="6" class="admin-day-header">${day.dateLabel}</td>
     </tr>
     ${day.items.map(slot => `
       <tr>
-        <td style="font-weight:800; color:#7a3c00;">${slot.slotLabel}</td>
-        <td style="font-weight:800; color:#b05a18;">${slot.timeText}</td>
-        <td colspan="5">
-          ${slot.leaves.length
-            ? slot.leaves.map(item => `<div style="margin-bottom:8px;"><strong>${item.name}</strong>｜${item.reasonText} <span class="hover-note" title="${item.typeText}｜${item.noteText || "無"}">詳細</span></div>`).join("")
-            : '<span class="empty-text">無人請假</span>'}
-        </td>
+        <td class="admin-slot-label">${slot.slotLabel}</td>
+        <td class="admin-slot-time">${slot.timeText}</td>
+        <td>${renderNameBadges(slot.attendanceNames, "badge-attend")}</td>
+        <td>${renderNameBadges(slot.leaveNamesWithReason, "badge-leave")}</td>
+        <td>${renderNameBadges(slot.partialNamesWithType, "badge-partial")}</td>
+        <td>${renderNameBadges(slot.betaDutyLines, "badge-duty")}</td>
       </tr>
     `).join("")}
   `).join("");
@@ -687,9 +792,12 @@ function bindEvents() {
 
     if (!adminCard.classList.contains("hidden")) {
       try {
+        setLoading(true, "更新總覽資料中...");
         await loadAdminData();
       } catch (err) {
         console.error("開啟總覽時更新失敗：", err);
+      } finally {
+        setLoading(false);
       }
     }
   });
