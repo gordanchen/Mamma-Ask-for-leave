@@ -11,15 +11,24 @@
   <div class="bg-decoration deco-2"></div>
   <div class="bg-decoration deco-3"></div>
 
+  <!-- Loading -->
   <div class="loading-overlay hidden" id="loadingOverlay">
-    <div class="loading-card">
-      <div class="loading-spinner"></div>
-      <div class="loading-text" id="loadingText">資料處理中...</div>
+    <div class="loading-card loading-progress-card">
+      <div class="loading-bee-wrap">
+        <div class="loading-bee" id="loadingBee">🐝</div>
+      </div>
+      <div class="loading-progress-track">
+        <div class="loading-progress-bar" id="loadingProgressBar"></div>
+      </div>
+      <div class="loading-text" id="loadingText">初始化資料中...</div>
+      <div class="loading-subtext" id="loadingSubtext">請稍候，正在整理請假與總覽資料</div>
     </div>
   </div>
 
+  <!-- Toast -->
   <div class="toast-wrap" id="toastWrap"></div>
 
+  <!-- Login -->
   <section class="page" id="loginPage">
     <div class="panel login-panel app-shell">
       <div class="panel-badge">2026 Mamma蜜呀 馬上發蜂 母親節市集活動請假系統</div>
@@ -40,6 +49,7 @@
     </div>
   </section>
 
+  <!-- Main -->
   <section class="page hidden" id="mainPage">
     <div class="panel main-panel app-shell">
       <div class="top-area">
@@ -50,6 +60,7 @@
         <div class="toolbar-row">
           <button class="btn btn-outline" id="scheduleBtn">查看課表</button>
           <button class="btn btn-outline" id="adminToggleBtn">查看總覽</button>
+          <button class="btn btn-outline" id="openFullOverviewBtn">全頁總覽</button>
           <button class="btn btn-outline" id="backBtn">更換人員</button>
         </div>
       </div>
@@ -90,8 +101,8 @@
       <div class="admin-card hidden" id="adminCard">
         <div class="status-chip badge-done">管理總覽</div>
         <div class="result-title">所有人請假狀況</div>
-        <div class="admin-table-wrap">
-          <table>
+        <div class="admin-table-wrap sticky-admin-wrap">
+          <table class="admin-sticky-table">
             <thead>
               <tr>
                 <th>時段</th>
@@ -109,6 +120,49 @@
     </div>
   </section>
 
+  <!-- Full Overview Page -->
+  <section class="page hidden" id="overviewPage">
+    <div class="panel main-panel app-shell overview-shell">
+      <div class="top-area">
+        <div>
+          <div class="panel-badge">2026 Mamma蜜呀 馬上發蜂</div>
+          <div class="overview-page-title">全頁總覽</div>
+          <div class="overview-page-subtitle">即時更新的所有請假與出席資料</div>
+        </div>
+        <div class="toolbar-row">
+          <button class="btn btn-outline" id="refreshOverviewBtn">重新整理</button>
+          <button class="btn btn-outline" id="backToMainBtn">回主頁</button>
+        </div>
+      </div>
+
+      <div class="admin-card overview-card-force">
+        <div class="status-chip badge-done">全頁即時總覽</div>
+        <div class="result-title">所有人請假狀況</div>
+        <div class="detail-box overview-tip-box">
+          <div class="detail-main">可左右、上下捲動查看全部資料，左側欄與上方欄會固定顯示。</div>
+          <div class="detail-sub">此頁與主頁總覽同步更新。</div>
+        </div>
+
+        <div class="admin-table-wrap sticky-admin-wrap sticky-admin-wrap-full">
+          <table class="admin-sticky-table">
+            <thead>
+              <tr>
+                <th>時段</th>
+                <th>時間</th>
+                <th>出席名單</th>
+                <th>請假名單</th>
+                <th>晚到 / 早退</th>
+                <th>beta推估值班時間</th>
+              </tr>
+            </thead>
+            <tbody id="overviewTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Leave Modal -->
   <div class="modal" id="leaveModal">
     <div class="modal-card">
       <h2 class="modal-title" id="modalTitle">新增請假</h2>
@@ -173,6 +227,7 @@
     </div>
   </div>
 
+  <!-- Schedule Modal -->
   <div class="modal" id="scheduleModal">
     <div class="modal-card">
       <h2 class="modal-title" id="scheduleModalTitle">查看課表</h2>
@@ -184,6 +239,7 @@
     </div>
   </div>
 
+  <!-- Confirm Modal -->
   <div class="modal" id="confirmModal">
     <div class="modal-card modal-card-sm">
       <h2 class="modal-title">確認刪除</h2>

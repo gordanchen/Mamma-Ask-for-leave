@@ -12,15 +12,23 @@ let currentSlot = null;
 let editingIndex = null;
 let leaveType = "整段請假";
 let pendingDeleteIndex = null;
+let loadingProgressTimer = null;
+let loadingProgressValue = 0;
 
 const loginPage = document.getElementById("loginPage");
 const mainPage = document.getElementById("mainPage");
+const overviewPage = document.getElementById("overviewPage");
+
 const departmentSelect = document.getElementById("departmentSelect");
 const memberSelect = document.getElementById("memberSelect");
 const enterBtn = document.getElementById("enterBtn");
 const backBtn = document.getElementById("backBtn");
 const scheduleBtn = document.getElementById("scheduleBtn");
 const adminToggleBtn = document.getElementById("adminToggleBtn");
+const openFullOverviewBtn = document.getElementById("openFullOverviewBtn");
+const backToMainBtn = document.getElementById("backToMainBtn");
+const refreshOverviewBtn = document.getElementById("refreshOverviewBtn");
+
 const showUser = document.getElementById("showUser");
 const slotGrid = document.getElementById("slotGrid");
 const requestList = document.getElementById("requestList");
@@ -30,6 +38,7 @@ const submitBtn = document.getElementById("submitBtn");
 const clearAllBtn = document.getElementById("clearAllBtn");
 const adminCard = document.getElementById("adminCard");
 const adminTableBody = document.getElementById("adminTableBody");
+const overviewTableBody = document.getElementById("overviewTableBody");
 
 const leaveModal = document.getElementById("leaveModal");
 const modalTitle = document.getElementById("modalTitle");
@@ -56,6 +65,9 @@ const closeScheduleModalBtn = document.getElementById("closeScheduleModalBtn");
 
 const loadingOverlay = document.getElementById("loadingOverlay");
 const loadingText = document.getElementById("loadingText");
+const loadingSubtext = document.getElementById("loadingSubtext");
+const loadingProgressBar = document.getElementById("loadingProgressBar");
+const loadingBee = document.getElementById("loadingBee");
 const toastWrap = document.getElementById("toastWrap");
 
 const confirmModal = document.getElementById("confirmModal");
@@ -63,9 +75,47 @@ const confirmText = document.getElementById("confirmText");
 const confirmYesBtn = document.getElementById("confirmYesBtn");
 const confirmNoBtn = document.getElementById("confirmNoBtn");
 
-function setLoading(show, text = "資料處理中...") {
+function startLoadingProgress(text = "資料處理中...", subtext = "請稍候") {
+  if (!loadingOverlay) return;
+
   loadingText.textContent = text;
-  loadingOverlay.classList.toggle("hidden", !show);
+  if (loadingSubtext) loadingSubtext.textContent = subtext;
+
+  loadingOverlay.classList.remove("hidden");
+  loadingProgressValue = 0;
+
+  if (loadingProgressBar) loadingProgressBar.style.width = "0%";
+  if (loadingBee) loadingBee.style.left = "0%";
+
+  clearInterval(loadingProgressTimer);
+  loadingProgressTimer = setInterval(() => {
+    loadingProgressValue += Math.random() * 8;
+    if (loadingProgressValue > 92) loadingProgressValue = 92;
+
+    if (loadingProgressBar) loadingProgressBar.style.width = `${loadingProgressValue}%`;
+    if (loadingBee) loadingBee.style.left = `${loadingProgressValue}%`;
+  }, 180);
+}
+
+function stopLoadingProgress() {
+  clearInterval(loadingProgressTimer);
+  loadingProgressTimer = null;
+  loadingProgressValue = 100;
+
+  if (loadingProgressBar) loadingProgressBar.style.width = "100%";
+  if (loadingBee) loadingBee.style.left = "100%";
+
+  setTimeout(() => {
+    loadingOverlay?.classList.add("hidden");
+  }, 260);
+}
+
+function setLoading(show, text = "資料處理中...", subtext = "請稍候") {
+  if (show) {
+    startLoadingProgress(text, subtext);
+  } else {
+    stopLoadingProgress();
+  }
 }
 
 function showToast(message, type = "info", duration = 2600) {
@@ -153,9 +203,13 @@ function updateUserDisplay() {
     showUser.textContent = "";
     return;
   }
+
   showUser.innerHTML = `目前登入部門：${currentUser.department}<br>目前登入職稱：${currentUser.title}<br>目前登入人員：${currentUser.name}`;
   const canViewAdmin = ADMIN_ALLOWED_NAMES.includes(currentUser.name);
+
   adminToggleBtn.classList.toggle("hidden", !canViewAdmin);
+  openFullOverviewBtn?.classList.toggle("hidden", !canViewAdmin);
+
   if (!canViewAdmin) adminCard.classList.add("hidden");
 }
 
@@ -176,11 +230,13 @@ async function handleEnter() {
 
   currentUser = found;
   updateUserDisplay();
+
   loginPage.classList.add("hidden");
   mainPage.classList.remove("hidden");
+  overviewPage?.classList.add("hidden");
 
   try {
-    setLoading(true, "載入個人請假資料...");
+    setLoading(true, "載入個人請假資料...", "正在同步你的請假紀錄");
     await loadMyRequests(currentUser.name);
     showToast("登入成功", "success");
   } catch (err) {
@@ -197,9 +253,12 @@ function logout() {
   renderSummary();
   renderSlots();
   updateUserDisplay();
+
   loginPage.classList.remove("hidden");
   mainPage.classList.add("hidden");
+  overviewPage?.classList.add("hidden");
   adminCard.classList.add("hidden");
+
   showToast("已切換登入人員", "info");
 }
 
@@ -268,6 +327,7 @@ function enforceTimeBounds() {
   if (startTimeInput.value && startTimeInput.value > currentSlot.end) startTimeInput.value = currentSlot.end;
   if (endTimeInput.value && endTimeInput.value < currentSlot.start) endTimeInput.value = currentSlot.start;
   if (endTimeInput.value && endTimeInput.value > currentSlot.end) endTimeInput.value = currentSlot.end;
+
   if (startTimeInput.value && endTimeInput.value && startTimeInput.value > endTimeInput.value) {
     endTimeInput.value = startTimeInput.value;
   }
@@ -468,7 +528,7 @@ async function runDelete(index) {
   const item = requests[index];
 
   try {
-    setLoading(true, "刪除資料中...");
+    setLoading(true, "刪除資料中...", "正在同步刪除請假紀錄");
     const json = await fetchJson(API_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -525,7 +585,7 @@ async function submitAll() {
   };
 
   try {
-    setLoading(true, "送出請假資料中...");
+    setLoading(true, "送出請假資料中...", "正在寫入 Google 試算表");
     const json = await fetchJson(API_URL, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
@@ -599,7 +659,7 @@ function calcBetaDutyTime(slotStart, slotEnd, typeText) {
   const slotStartMin = timeToMinutes(slotStart);
   const slotEndMin = timeToMinutes(slotEnd);
 
-  if (!parsed.range) return `${slotStart} - ${slotEnd}`;
+  if (!parsed.range) return `${slotStart}-${slotEnd}`;
 
   const leaveStart = timeToMinutes(parsed.range.start);
   const leaveEnd = timeToMinutes(parsed.range.end);
@@ -629,10 +689,10 @@ function renderNameBadges(list, className = "") {
   `;
 }
 
-function renderAdminTable() {
+function buildGroupedAdminData() {
   const allMemberNames = membersData.map(item => item.name).filter(Boolean);
 
-  const grouped = slotGroups.map(day => ({
+  return slotGroups.map(day => ({
     dateLabel: day.dateLabel,
     items: (day.items || []).map(slot => {
       const leaves = adminData.filter(item => item.slotLabel === slot.slotLabel && item.dateLabel === day.dateLabel);
@@ -651,7 +711,10 @@ function renderAdminTable() {
           betaDuty: calcBetaDutyTime(slot.start, slot.end, item.typeText)
         }));
 
+      const partialNames = partialLeaves.map(item => item.name);
       const attendanceNames = allMemberNames.filter(name => !fullLeaveNames.includes(name));
+      const normalAttendance = attendanceNames.filter(name => !partialNames.includes(name));
+      const partialAttendance = attendanceNames.filter(name => partialNames.includes(name));
 
       const leaveNamesWithReason = leaves.map(item => `${item.name}｜${item.reasonText}`);
       const partialNamesWithType = partialLeaves.map(item => `${item.name}｜${item.typeText}`);
@@ -660,29 +723,43 @@ function renderAdminTable() {
       return {
         slotLabel: slot.slotLabel,
         timeText: `${slot.start} - ${slot.end}`,
-        attendanceNames,
+        normalAttendance,
+        partialAttendance,
         leaveNamesWithReason,
         partialNamesWithType,
         betaDutyLines
       };
     })
   }));
+}
 
-  adminTableBody.innerHTML = grouped.map(day => `
+function renderAdminTableBody(targetBody) {
+  if (!targetBody) return;
+  const grouped = buildGroupedAdminData();
+
+  targetBody.innerHTML = grouped.map(day => `
     <tr>
       <td colspan="6" class="admin-day-header">${day.dateLabel}</td>
     </tr>
     ${day.items.map(slot => `
       <tr>
-        <td class="admin-slot-label">${slot.slotLabel}</td>
+        <td class="sticky-col admin-slot-label">${slot.slotLabel}</td>
         <td class="admin-slot-time">${slot.timeText}</td>
-        <td>${renderNameBadges(slot.attendanceNames, "badge-attend")}</td>
+        <td>
+          ${renderNameBadges(slot.normalAttendance, "badge-attend")}
+          ${slot.partialAttendance.length ? renderNameBadges(slot.partialAttendance, "badge-partial") : ""}
+        </td>
         <td>${renderNameBadges(slot.leaveNamesWithReason, "badge-leave")}</td>
         <td>${renderNameBadges(slot.partialNamesWithType, "badge-partial")}</td>
         <td>${renderNameBadges(slot.betaDutyLines, "badge-duty")}</td>
       </tr>
     `).join("")}
   `).join("");
+}
+
+function renderAdminTable() {
+  renderAdminTableBody(adminTableBody);
+  renderAdminTableBody(overviewTableBody);
 }
 
 async function loadMembers() {
@@ -777,6 +854,17 @@ function closeScheduleModal() {
   scheduleModalBody.innerHTML = "";
 }
 
+function openFullOverviewPage() {
+  mainPage.classList.add("hidden");
+  overviewPage?.classList.remove("hidden");
+  renderAdminTableBody(overviewTableBody);
+}
+
+function backToMainPage() {
+  overviewPage?.classList.add("hidden");
+  mainPage.classList.remove("hidden");
+}
+
 function bindEvents() {
   departmentSelect.addEventListener("change", onDepartmentChange);
   enterBtn.addEventListener("click", handleEnter);
@@ -792,13 +880,44 @@ function bindEvents() {
 
     if (!adminCard.classList.contains("hidden")) {
       try {
-        setLoading(true, "更新總覽資料中...");
+        setLoading(true, "更新總覽資料中...", "正在同步最新請假資料");
         await loadAdminData();
       } catch (err) {
         console.error("開啟總覽時更新失敗：", err);
       } finally {
         setLoading(false);
       }
+    }
+  });
+
+  openFullOverviewBtn?.addEventListener("click", async () => {
+    if (!currentUser || !ADMIN_ALLOWED_NAMES.includes(currentUser.name)) return;
+
+    try {
+      setLoading(true, "載入全頁總覽...", "正在整理完整即時總覽資料");
+      await loadAdminData();
+      openFullOverviewPage();
+    } catch (err) {
+      console.error("全頁總覽開啟失敗：", err);
+      showToast("全頁總覽開啟失敗", "error");
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  backToMainBtn?.addEventListener("click", backToMainPage);
+
+  refreshOverviewBtn?.addEventListener("click", async () => {
+    try {
+      setLoading(true, "更新全頁總覽...", "正在同步最新總覽資料");
+      await loadAdminData();
+      renderAdminTableBody(overviewTableBody);
+      showToast("全頁總覽已更新", "success");
+    } catch (err) {
+      console.error("更新全頁總覽失敗：", err);
+      showToast("更新全頁總覽失敗", "error");
+    } finally {
+      setLoading(false);
     }
   });
 
@@ -862,7 +981,7 @@ async function init() {
   }, 5000);
 
   try {
-    setLoading(true, "初始化資料中...");
+    setLoading(true, "初始化資料中...", "🐝 正在整理活動時段、名單與總覽資料");
     await loadMembers();
     await loadSlots();
     await loadAdminData();
